@@ -1,0 +1,7 @@
+*.zip
+.vscode
+__pycache*
+config.py
+sessionFiles/*
+tests.py
+logs/*

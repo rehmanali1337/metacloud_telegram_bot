@@ -1,14 +1,10 @@
 from telethon.sync import TelegramClient, events
 import json
 import asyncio
+import config
 
-config = json.load(open('config.json', 'r'))
 
-API_ID = config.get('API_ID')
-API_HASH = config.get('API_HASH')
-PHONE = config.get('PHONE')
-
-client = TelegramClient('sessionFiles/client', API_ID, API_HASH)
+client = TelegramClient('sessionFiles/client', config.API_ID, config.API_HASH)
 
 
 async def on_ready():
@@ -21,7 +17,7 @@ async def on_ready():
     print(f'ID : {en.id}')
 
 try:
-    client.start(phone=PHONE)
+    client.start(phone=config.PHONE)
     client.loop.create_task(on_ready())
     print(' Bot is up!')
     client.run_until_disconnected()

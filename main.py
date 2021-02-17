@@ -87,48 +87,16 @@ def is_signal(message):
 
 
 async def setup_event_handlers():
-    channel1_name = config.CHANNEL1_NAME
-    channel2_name = config.CHANNEL2_NAME
-    channel3_name = config.CHANNEL3_NAME
-    channel4_name = config.CHANNEL4_NAME
-    channel5_name = config.CHANNEL5_NAME
-    channel1_id = None
-    channel2_id = None
-    channel3_id = None
-    channel4_id = None
-    channel5_id = None
-    for d in await client.get_dialogs():
-        if d.title == channel1_name:
-            channel1_id = d.id
-            print('[+] Channel1 found!')
-        elif d.title == channel2_name:
-            channel2_id = d.id
-            print('[+] Channel2 found!')
-        elif d.title == channel3_name:
-            channel3_id = d.id
-            print('[+] Channel3 found!')
-        elif d.title == channel4_name:
-            channel4_id = d.id
-            print('[+] Channel4 found!')
-        elif d.title == channel5_name:
-            channel5_id = d.id
-            print('[+] Channel5 found!')
-
-    if channel1_id:
-        client.add_event_handler(channel1_handler, events.NewMessage(
-            chats=channel1_id, func=is_signal))
-    if channel2_id:
-        client.add_event_handler(channel2_handler, events.NewMessage(
-            chats=channel2_id, func=is_signal))
-    if channel3_id:
-        client.add_event_handler(channel3_handler, events.NewMessage(
-            chats=channel3_id, func=is_signal))
-    if channel4_id:
-        client.add_event_handler(channel4_handler, events.NewMessage(
-            chats=channel4_id, func=is_signal))
-    if channel5_id:
-        client.add_event_handler(channel5_handler, events.NewMessage(
-            chats=channel5_id, func=is_signal))
+    client.add_event_handler(channel1_handler, events.NewMessage(
+        chats=config.CHANNEL1_ID, func=is_signal))
+    client.add_event_handler(channel2_handler, events.NewMessage(
+        chats=config.CHANNEL2_ID, func=is_signal))
+    client.add_event_handler(channel3_handler, events.NewMessage(
+        chats=config.CHANNEL3_ID, func=is_signal))
+    client.add_event_handler(channel4_handler, events.NewMessage(
+        chats=config.CHANNEL4_ID, func=is_signal))
+    client.add_event_handler(channel5_handler, events.NewMessage(
+        chats=config.CHANNEL5_ID, func=is_signal))
 
 
 async def after_connect():

@@ -10,9 +10,11 @@ class MT4:
         self.api = MetaApi(config.METACLOUD_API_KEY)
         self.loginfo = logging.getLogger(' MT4 ').warning
         self.account = None
+        self.mt5_filename = 'servers.dat'
+        self.mt_version = 5
 
     async def createProfile(self, profileName: str = None, brokerTimezone: str = None,
-                            brokerDSTSwitchTimezone: str = None, serversFile: str = None, version: int = 4):
+                            brokerDSTSwitchTimezone: str = None, serversFile: str = None, version: int = 5):
 
         provisioningProfile = await self.api.provisioning_profile_api.create_provisioning_profile({
             'name': profileName,
@@ -20,7 +22,7 @@ class MT4:
             'brokerTimezone': brokerTimezone,
             'brokerDSTSwitchTimezone': brokerDSTSwitchTimezone
         })
-        await provisioningProfile.upload_file('broker.srv', serversFile)
+        await provisioningProfile.upload_file(self.mt5_filename, serversFile)
         return provisioningProfile
 
     async def getAllProfiles(self):

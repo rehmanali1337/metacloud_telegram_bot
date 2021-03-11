@@ -32,24 +32,21 @@ class SignalExecutor:
             print('Executing sell order ...')
             await self.mt.createSellOrder(self.signal.symbol,
                                           self.signal.stop_loss,
-                                          self.signal.tp,
+                                          self.signal.take_profit,
                                           self.signal.price)
 
     async def ask_for_confirmation(self):
-        print('Asking for confirmation ...')
         async with self.bot.conversation(self.admin_id) as self.conv:
-            print('Started conv')
             execute_btn = Button.inline('Execute Signal', data=b'execute')
             not_execute_btn = Button.inline(
                 'Don\'t Execute Signal', data=b'not_execute')
             buttons = [execute_btn, not_execute_btn]
-            message = f'New Signal\n{self.signal.signal_type.value}@{self.signal.price}\n\
+            message = f'New Signal\nSymbol : {self.signal.symbol}\n{self.signal.signal_type.value}@{self.signal.price}\n\
 Price : {self.signal.price}\nStop Loss : \
 {self.signal.stop_loss}\nTake Profit : {self.signal.take_profit}'
 
             q = await self.conv.send_message(message, buttons=buttons)
             r = await self.conv.wait_event(events.CallbackQuery)
-            print(r.query.data)
             await q.delete()
             if r.query.data == b'execute':
                 await self.execute_signal()

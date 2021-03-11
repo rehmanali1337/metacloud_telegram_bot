@@ -8,9 +8,9 @@ class SignalTypes(enum.Enum):
 
 class Signal:
     def __init__(self):
-        take_profit = None
-        stop_loss = None
-        price = None
-        signal_type = None
-        symbol = None
-        volume = None
+        self.take_profit = None
+        self.stop_loss = None
+        self.price = None
+        self.signal_type = None
+        self.symbol = None
+        self.volume = None

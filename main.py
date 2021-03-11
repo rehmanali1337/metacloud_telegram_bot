@@ -81,8 +81,10 @@ async def channel5_handler(message):
 
 def is_signal(message):
     text = message.raw_text
-    if 'TP' in text or 'Tp' in text or 'tp' in text:
-        return True
+    if 'tp' in text.lower():
+        if 'sl' in text.lower():
+            if 'buy' in text.lower() or 'sell' in text.lower():
+                return True
     return False
 
 

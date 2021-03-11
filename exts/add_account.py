@@ -70,7 +70,7 @@ class AddAccount:
                 Button.url('Where to get the dat file?',
                            url=mt5_video_url)
             ]
-            q = await self.conv.send_message('Upload the your broker\'s server file. [*.srv file]?', buttons=btns)
+            q = await self.conv.send_message('Upload the your broker\'s server file. [servers.dat file]?', buttons=btns)
             r = await self.conv.wait_event(events.NewMessage(func=checkFile))
             await rm([q, r])
             await self.conv.send_message('Linking your MT5 Account to the bot.. Please wait ...')

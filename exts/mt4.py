@@ -91,6 +91,8 @@ class MT4:
         if not status:
             return
         try:
+            # await self.account.deploy()
+            await self.account.wait_connected()
             connection = await self.account.connect()
             print('Account connected!')
             await connection.wait_synchronized()

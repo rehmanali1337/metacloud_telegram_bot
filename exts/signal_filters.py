@@ -1,128 +1,129 @@
 # from models.types import Signal, SignalTypes
 import enum
+import re
+from models.types import SignalTypes, Signal
 
 
-class SignalTypes(enum.Enum):
-    BUY = 'buy'
-    SELL = 'sell'
+def channel1_filter(signal):
+    print('Filtering the below signal in channel 1 filter function...')
+    print(signal)
+    sig = Signal()
+    sig.symbol = re.match(r'(^\w+)', signal).group()
+    order_type = re.match(r'(^\w+) (\w+)', signal).group(2).lower()
+    if order_type == 'buy':
+        sig.signal_type = SignalTypes.BUY
+    elif order_type == 'sell':
+        sig.signal_type = SignalTypes.SELL
+    if 'TP ' in signal:
+        # Only one signal in this case
+        sig.take_profit = re.search(
+            r'TP (\d\.?\d+)', signal, flags=re.IGNORECASE).group(1)
+        sig.stop_loss = re.search(
+            r'SL (\d.?\d+)', signal, flags=re.IGNORECASE).group(1)
+        sig.price = re.search(r'@ *(\d?\.?\d+)', signal,
+                              flags=re.IGNORECASE).group(1)
+        return [sig]
+    sig.price = re.search(r'@ *(\d?\.?\d+)', signal).group(1)
+    sig.stop_loss = re.search(r'SL (\d.?\d+)', signal,
+                              flags=re.IGNORECASE).group(1)
+    sig.take_profit = re.search(
+        r'TP1 ?(\d\.?\d+)', signal, flags=re.IGNORECASE).group(1)
+    if 'TP3 ' in signal:
+        sig2 = sig
+        sig2.take_profit = re.search(
+            r'TP3 ?(\d\.?\d+)', signal, flags=re.IGNORECASE).group(1)
+        return [sig, sig2]
+    return [sig]
 
 
-class Signal:
-    def __init__(self):
-        take_profit = None
-        stop_loss = None
-        price = None
-        signal_type = None
-        symbol = None
-
-
-def channel1_filter(signal: str) -> list:
-    all_signals = list()
-    s = Signal()
-    s.symbol = signal.split(' ')[0].strip()
-    signal_type = signal.split(' ')[1].lower().strip()
+def channel2_filter(signal):
+    print('Filtering the below signal in channel 2 filter function...')
+    print(signal)
+    sig = Signal()
+    sig.symbol = re.match(
+        r'(^\w+)', signal, flags=re.IGNORECASE).group(1).upper()
+    signal_type = re.search(r'^\w+ (\w+)', signal,
+                            flags=re.IGNORECASE).group(1).lower()
     if signal_type == 'sell':
-        s.signal_type = SignalTypes.SELL
+        sig.signal_type = SignalTypes.SELL
     elif signal_type == 'buy':
-        s.signal_type = SignalTypes.BUY
-    s.price = signal.split('@')[1].split('\n')[0].strip()
-    s.stop_loss = signal.split('\n')[1].split(' ')[1].strip()
-    s.take_profit = signal.split('\n')[2].split(' ')[1].strip()
-    all_signals.append(s)
-    if 'TP3' in signal:
-        s2 = Signal()
-        s2.take_profit = signal.split('\n')[-1].split(' ')[-1]
-        s2.stop_loss = s.stop_loss
-        s2.price = s.price
-        s2.symbol = s.symbol
-        s2.signal_type = s.signal_type
-        all_signals.append(s2)
-    return all_signals
+        sig.signal_type = SignalTypes.BUY
+    sig.price = re.search(r'at ?(\d\.?\d+)', signal).group(1)
+    sig.stop_loss = re.search(r'SL ?(\d\.?\d+)+', signal,
+                              flags=re.IGNORECASE).group(1)
+    sig.take_profit = re.search(
+        r'tp ?(\d.?\d+)', signal, flags=re.IGNORECASE).group(1)
+    return [sig]
 
 
-def channel2_filter(signal: str) -> list:
-    s = Signal()
-    s.symbol = signal.split(' ')[0].upper()
-    signal_type = signal.split(' ')[1].strip().lower()
+def channel3_filter(signal):
+    print('Filtering the below signal in channel 3 filter function...')
+    print(signal)
+    sig = Signal()
+    signal_type = re.match(r'(^\w+)', signal).group(1).lower()
     if signal_type == 'sell':
-        s.signal_type = SignalTypes.SELL
+        sig.signal_type = SignalTypes.SELL
     elif signal_type == 'buy':
-        s.signal_type = SignalTypes.BUY
-    s.price = signal.split('at')[1].split('\n')[0].strip()
-    s.stop_loss = signal.split('Sl')[1].split('\n')[0].strip()
-    s.take_profit = signal.split('Tp')[1].strip()
-    return [s]
+        sig.signal_type = SignalTypes.BUY
+    sig.symbol = re.search(r'(\w+) (\w+)', signal,
+                           re.IGNORECASE).group().split(' ')[-1].upper()
+    sig.stop_loss = re.search(
+        r'sl\D*(\d?\.?\d+)', signal, re.IGNORECASE).group(1)
+    sig.take_profit = re.search(
+        r'tp\D\.*(\d.+)', signal, re.IGNORECASE).group(1)
+    sig.price = re.search(r'^\w* \w*\D*(\d?\.?\d*)',
+                          signal, re.IGNORECASE).group(1)
+    return [sig]
 
 
-def channel3_filter(signal: str) -> []:
-    # TODO: Have some doubts in function.. Needs to be worked on.
-    # Will need to talk to client for fix
-    s = Signal()
-    signal_type = signal.split(' ')[0].strip().lower()
+def channel4_filter(signal):
+    print('Filtering the below signal in channel 4 filter function...')
+    print(signal)
+    sig = Signal()
+    signal_type = re.match(r'\w+', signal, re.IGNORECASE).group().lower()
     if signal_type == 'sell':
-        s.signal_type = SignalTypes.SELL
+        sig.symbol = SignalTypes.SELL
     elif signal_type == 'buy':
-        s.signal_type = SignalTypes.BUY
-    s.stop_loss = signal.split('\n')[2].split('..')[-1].strip()
-    s.take_profit = signal.split('\n')[3].split('..')[-1].strip()
-    s.price = signal.split('\n')[0].split('AT')[-1].strip()
-    s.symbol = signal.split(' ')[1].upper()
-    return [s]
+        sig.symbol = SignalTypes.BUY
+    sig.symbol = re.findall(r'(\w+)', signal)[2].upper()
+    sig.stop_loss = re.search(
+        r'sl\.*(\d*\.*\d*)', signal, re.IGNORECASE).group(1)
+    sig.take_profit = re.search(
+        r'tp\.+(\d+\.?\d*)', signal, re.IGNORECASE).group(1)
+    sig.price = re.search(r'now (\d+\.?\d*)', signal, re.IGNORECASE).group(1)
+    if 'one more' in signal.lower():
+        sig2 = sig
+        sig2.price = re.search(
+            r'one more (\w+)+ at (\d+)', signal, re.IGNORECASE).group(2)
+        return [sig, sig2]
+    return [sig]
 
 
-def channel4_filter(signal: str) -> []:
-    all_signals = []
-    s = Signal()
-    signal_type = signal.split(' ')[0].strip().lower()
+def channel5_filter(signal):
+    print('Filtering the below signal in channel 5 filter function...')
+    print(signal)
+    sig = Signal()
+    sig.symbol = re.search(r'#(\w+)', signal, re.IGNORECASE).group(1).upper()
+    res = re.search(r'#\w+\s(\w+)_(\d+\.?\d+)', signal, re.IGNORECASE)
+    sig.price = res.group(2)
+    signal_type = res.group(1).lower()
     if signal_type == 'sell':
-        s.signal_type = SignalTypes.SELL
+        sig.signal_type = SignalTypes.SELL
     elif signal_type == 'buy':
-        s.signal_type = SignalTypes.BUY
-    s.symbol = signal.split(' ')[2].split('\n')[0].strip().upper()
-    s.stop_loss = signal.split('\n')[3].split('..')[-1].strip()
-    s.take_profit = signal.split('\n')[-2].split('..')[-1].strip()
-    all_signals.append(s)
-    if 'more' in signal:
-        s2 = Signal()
-        s2.price = signal.split('\n')[2].split('at')[-1].strip()
-        s2.take_profit = s.take_profit
-        s2.stop_loss = s.stop_loss
-        s2.symbol = s.symbol
-        s2.signal_type = s.signal_type
-        all_signals.append(s2)
-    return all_signals
-
-
-def channel5_filter(signal: str) -> []:
-    all_signals = []
-    s = Signal()
-    signal_type = signal.split('\n')[1].split('_')[0].strip().lower()
-    if signal_type == 'buy':
-        s.signal_type = SignalTypes.BUY
-    elif signal_type == 'sell':
-        s.signal_type = SignalTypes.SELL
-    s.symbol = signal.split('\n')[0].replace('#', '').strip().upper()
-    s.price = signal.split('\n')[1].split('_')[1].strip()
-    s.stop_loss = signal.split('\n')[3].split('_')[-1].strip()
-    s.take_profit = signal.split('\n')[4].split('_')[-1].strip()
-    all_signals.append(s)
-    if 'MORE' in signal:
-        # Get another signal with another price but same tp and sl.
-        s2 = Signal()
-        s2.price = signal.split('\n')[2].split('_')[-1].strip()
-        s2.take_profit = s.take_profit
-        s2.stop_loss = s.stop_loss
-        s2.signal_type = s.signal_type
-        s2.symbol = s.symbol
-        all_signals.append(s2)
-    return all_signals
-
-
-signal = '''#USDCAD
-SELL_1.2775
-ONE MORE SELL_1.2825
-SL_1.2875
-TP_1.2740
-TP2_1.2675'''
-
-channel5_filter(signal)
+        sig.signal_type = SignalTypes.BUY
+    sig.stop_loss = re.search(
+        r'SL_(\d+\.?\d+)', signal, re.IGNORECASE).group(1)
+    sig.take_profit = re.search(
+        r'TP_(\d+\.?\d+)', signal, re.IGNORECASE).group(1)
+    if 'one more' in signal.lower():
+        sig2 = sig
+        res = re.search(
+            r'one more (\w+)_(\d+\.?\d+)', signal, re.IGNORECASE)
+        sig2.price = res.group(2)
+        signal_type = res.group(1).lower()
+        if signal_type == 'sell':
+            sig2.signal_type = SignalTypes.SELL
+        elif signal_type == 'buy':
+            sig2.signal_type = SignalTypes.BUY
+        return [sig, sig2]
+    return [sig]

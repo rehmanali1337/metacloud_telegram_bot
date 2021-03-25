@@ -15,9 +15,9 @@ import logging
 from exts.add_account import AddAccount
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 consoleHandler = logging.StreamHandler()
-consoleHandler.setLevel(logging.INFO)
+consoleHandler.setLevel(logging.WARNING)
 formator = logging.Formatter(
     '[%(asctime)s] - [%(name)s] - %(levelname)s - %(message)s')
 consoleHandler.setFormatter(formator)
@@ -42,6 +42,7 @@ mt = MT4()
 async def channel1_handler(message):
     print('Valid Channel 1 signal')
     signals = channel1_filter(message.raw_text)
+    await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
         await se.start_execution()
@@ -50,6 +51,7 @@ async def channel1_handler(message):
 async def channel2_handler(message):
     print('Valid Channel 2 signal')
     signals = channel2_filter(message.raw_text)
+    await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
         await se.start_execution()
@@ -58,6 +60,7 @@ async def channel2_handler(message):
 async def channel3_handler(message):
     print('Valid Channel 3 signal')
     signals = channel3_filter(message.raw_text)
+    await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
         await se.start_execution()
@@ -66,6 +69,7 @@ async def channel3_handler(message):
 async def channel4_handler(message):
     print('Valid Channel 4 signal')
     signals = channel4_filter(message.raw_text)
+    await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
         await se.start_execution()
@@ -74,6 +78,7 @@ async def channel4_handler(message):
 async def channel5_handler(message):
     print('Valid Channel 5 signal')
     signals = channel5_filter(message.raw_text)
+    await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt,  signal)
         await se.start_execution()

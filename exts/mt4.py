@@ -7,11 +7,21 @@ import config
 
 class MT4:
     def __init__(self):
-        self.api = MetaApi(config.METACLOUD_API_KEY)
         self.loginfo = logging.getLogger(' MT4 ').warning
         self.account = None
+        self.connection = None
+        self.api = False
         self.mt5_filename = 'servers.dat'
         self.mt_version = 5
+        self.init_complete = False
+
+    async def async_init(self):
+        if self.init_complete:
+            return
+        if not self.api:
+            self.api = MetaApi(token=config.METACLOUD_ACCOUNT_TOKEN)
+        await self.get_account_connection()
+        self.init_complete = True
 
     async def createProfile(self, profileName: str = None, brokerTimezone: str = None,
                             brokerDSTSwitchTimezone: str = None, serversFile: str = None, version: int = 5):
@@ -63,19 +73,35 @@ class MT4:
         return True, createdAccount
 
     async def account_exists(self):
-        accounts = await self.api.metatrader_account_api.get_accounts()
-        if len(accounts) == 0:
-            return False
-        return True
-
-    async def get_account(self):
-        if self.account is None:
-            accounts = await self.api.metatrader_account_api.get_accounts()
-            if len(accounts) == 0:
-                print('No Accounts added to terminal.')
-                return False
-            self.account = accounts[0]
+        try:
+            await self.api.metatrader_account_api.get_account(config.METACLOUD_ACCOUNT_ID)
             return True
+        except clients.errorHandler.UnauthorizedException:
+            return False
+
+    async def get_account_connection(self):
+        if self.connection is None:
+            if self.account is None:
+                self.account = await self.api.metatrader_account_api.get_account(config.METACLOUD_ACCOUNT_ID)
+                initial_state = self.account.state
+                deployed_states = ['DEPLOYING', 'DEPLOYED']
+
+                if initial_state not in deployed_states:
+                    #  wait until account is deployed and connected to broker
+                    print('Deploying account')
+                    await self.account.deploy()
+
+                print(
+                    'Waiting for API server to connect to broker (may take couple of minutes)')
+                await self.account.wait_connected()
+
+            # connect to MetaApi API
+            self.connection = await self.account.connect()
+
+            # wait until terminal state synchronized to the local state
+            print(
+                'Waiting for SDK to synchronize to terminal state (may take some time depending on your history size)')
+            await self.connection.wait_synchronized()
 
     async def getDeployedAccounts(self, **kwargs):
         accounts = await self.api.metatrader_account_api.get_accounts({
@@ -85,101 +111,52 @@ class MT4:
         })
         return accounts
 
-    async def createBuyOrder(self, symbol, sl, tp, price):
+    async def create_buy_order(self, symbol=None,
+                               open_price=None, stop_loss=None,
+                               take_profit=None):
         volume = config.LOT_VALUE
-        status = await self.get_account()
-        if not status:
-            return
+        if self.connection is None:
+            await self.get_account_connection()
         try:
-            # await self.account.deploy()
-            await self.account.wait_connected()
-            connection = await self.account.connect()
-            print('Account connected!')
-            await connection.wait_synchronized()
-            print('Account synched!')
-        except clients.timeoutException.TimeoutException:
-            self.loginfo('Sync time out..\nTrying again..')
-            await connection.close()
-            await self.createBuyOrder(symbol, sl, tp, price)
-            return
-        try:
+            info = await self.connection.get_symbol_price(symbol)
+            open_price = float(info['ask'])
             self.loginfo(f'Symbol : {symbol}')
             self.loginfo(f'Volume : {volume}')
-            self.loginfo(f'TP : {tp}')
-            self.loginfo(f'SL : {sl}')
-            self.loginfo(f'Open Price : {price}')
-            await connection.create_limit_buy_order(symbol=str(symbol),
-                                                    volume=float(volume), open_price=float(price),
-                                                    stop_loss=float(sl), take_profit=float(tp),
-                                                    options={'comment': 'comment', 'clientId': 'TE_GBPUSD_7hyINWqAl'})
+            self.loginfo(f'TP : {take_profit}')
+            self.loginfo(f'SL : {stop_loss}')
+            self.loginfo(f'Open Price : {open_price}')
+            await self.connection.create_stop_buy_order(
+                str(symbol), float(volume), float(open_price),
+                float(stop_loss), float(take_profit))
             self.loginfo(f'Order Execution successfull!')
-            await connection.close()
-        except clients.metaApi.tradeException.TradeException as e:
-            self.loginfo('Trade execution failed because of trade exception!')
-            self.loginfo(e.__dict__)
-            return None
-
-    async def createSellOrder(self, symbol, sl, tp, price):
-        volume = config.LOT_VALUE
-        status = await self.get_account()
-        if not status:
-            return
-        try:
-            connection = await self.account.connect()
-            print('Account connected!')
-            await connection.wait_synchronized()
-            print('Account synched!')
-        except clients.timeoutException.TimeoutException:
-            self.loginfo('Sync time out..\nTrying again..')
-            await connection.close()
-            await self.createSellOrder(symbol, sl, tp, price)
-            return
-        try:
-            self.loginfo(f'Symbol : {symbol}')
-            self.loginfo(f'Volume : {volume}')
-            self.loginfo(f'TP : {tp}')
-            self.loginfo(f'SL : {sl}')
-            self.loginfo(f'Open Price : {price}')
-            await connection.create_limit_sell_order(symbol=str(symbol),
-                                                     volume=float(volume), stop_loss=float(sl),
-                                                     take_profit=float(tp), open_price=float(
-                price))
-            self.loginfo(f'Order Execution successfull!')
-            await connection.close()
+            # await self.connection.close()
             return
         except clients.metaApi.tradeException.TradeException as e:
             self.loginfo('Trade execution failed because of trade exception!')
             self.loginfo(e.__dict__)
             return None
 
-    async def createDemoAccount(self, provisioningProfileID):
-        demo_account = await self.api.metatrader_demo_account_api.create_mt4_demo_account(provisioningProfileID, {
-            'balance': 100000,
-            'email': 'example@example.com',
-            'leverage': 100,
-            'serverName': 'Exness-Trial4'
-        })
-        return demo_account
+    async def create_sell_order(self, symbol=None,
+                                open_price=None, stop_loss=None,
+                                take_profit=None):
+        volume = config.LOT_VALUE
+        if self.connection is None:
+            await self.get_account_connection()
+        try:
+            info = await self.connection.get_symbol_price(symbol)
+            open_price = float(info['bid'])
+            self.loginfo(f'Symbol : {symbol}')
+            self.loginfo(f'Volume : {volume}')
+            self.loginfo(f'TP : {take_profit}')
+            self.loginfo(f'SL : {stop_loss}')
+            self.loginfo(f'Open Price : {open_price}')
 
-
-async def main():
-    mt = MT4()
-    accounts = await mt.getDeployedAccounts()
-    accountID = accounts[0].id
-    symbol = 'EURUSD'
-    volme = 77.00
-    stopLoss = 77.70
-    take_profit = 76.01
-    try:
-        res = await mt.createSellOrder(symbol, stopLoss, take_profit, 1)
-    except clients.errorHandler.ValidationException as e:
-        print(e._details)
-    print(res)
-
-
-if __name__ == "__main__":
-    import time
-    start_time = time.time()
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
-    print("--- %s seconds ---" % (time.time() - start_time))
+            await self.connection.create_stop_sell_order(
+                str(symbol), float(volume), float(open_price), float(stop_loss), float(take_profit), options={})
+            self.loginfo(f'Order Execution successfull!')
+            # await self.connection.close()
+            return
+        except clients.metaApi.tradeException.TradeException as e:
+            self.loginfo('Trade execution failed because of trade exception!')
+            self.loginfo(e.__dict__)
+            return None

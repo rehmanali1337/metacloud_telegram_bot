@@ -14,3 +14,4 @@ class Signal:
         self.signal_type = None
         self.symbol = None
         self.volume = None
+        self.channel_number = None

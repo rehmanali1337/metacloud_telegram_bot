@@ -39,8 +39,9 @@ class AddAccount:
         self.mt = MT4()
 
     async def start(self):
-        if await self.mt.account_exists():
-            return
+        if not await self.mt.account_exists():
+            return exit('Trading account does not exist in metacloud.')
+        return
         async with self.bot.conversation(config.ADMIN_TG_ID, timeout=120) as self.conv:
             await self.conv.send_message('Welcome to the bot!')
             await self.addAccount()

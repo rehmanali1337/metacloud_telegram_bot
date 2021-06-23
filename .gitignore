@@ -5,3 +5,4 @@ config.py
 sessionFiles/*
 tests.py
 logs/*
+.metaapi

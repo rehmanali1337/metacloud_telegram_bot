@@ -15,3 +15,11 @@ class Signal:
         self.symbol = None
         self.volume = None
         self.channel_number = None
+
+
+class NumberInfo:
+    def __init__(self):
+        self.is_int = False
+        self.is_float = False
+        self.number_len = 0
+        self.fraction_len = 0

@@ -39,6 +39,7 @@ class AddAccount:
         self.mt = MT4()
 
     async def start(self):
+        await self.mt.async_init()
         if not await self.mt.account_exists():
             return exit('Trading account does not exist in metacloud.')
         return

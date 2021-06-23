@@ -7,12 +7,14 @@ from exts.signal_filters import (
     channel2_filter,
     channel3_filter,
     channel4_filter,
-    channel5_filter
+    channel5_filter,
+    channel6_filter
 )
 from exts.executor import SignalExecutor
 from exts.mt4 import MT4
 import logging
 from exts.add_account import AddAccount
+import traceback
 
 logger = logging.getLogger()
 logger.setLevel(logging.WARNING)
@@ -36,12 +38,17 @@ if not os.path.exists(sessionFiles):
 client = TelegramClient(f'{sessionFiles}/client',
                         config.API_ID, config.API_HASH)
 bot = TelegramClient(f'{sessionFiles}/bot', config.API_ID, config.API_HASH)
-mt = MT4()
 
 
 async def channel1_handler(message):
     print('Valid Channel 1 signal')
-    signals = channel1_filter(message.raw_text)
+    try:
+        signals = channel1_filter(message.raw_text)
+    except Exception:
+        logger.info('Ignoring signal becuase it is broken!')
+        traceback.print_exc()
+        return
+    mt = MT4()
     await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
@@ -50,7 +57,13 @@ async def channel1_handler(message):
 
 async def channel2_handler(message):
     print('Valid Channel 2 signal')
-    signals = channel2_filter(message.raw_text)
+    try:
+        signals = channel2_filter(message.raw_text)
+    except Exception:
+        traceback.print_exc()
+        logger.info('Ignoring signal becuase it is broken!')
+        return
+    mt = MT4()
     await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
@@ -59,7 +72,13 @@ async def channel2_handler(message):
 
 async def channel3_handler(message):
     print('Valid Channel 3 signal')
-    signals = channel3_filter(message.raw_text)
+    try:
+        signals = channel3_filter(message.raw_text)
+    except Exception:
+        traceback.print_exc()
+        logger.info('Ignoring signal becuase it is broken!')
+        return
+    mt = MT4()
     await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
@@ -68,7 +87,13 @@ async def channel3_handler(message):
 
 async def channel4_handler(message):
     print('Valid Channel 4 signal')
-    signals = channel4_filter(message.raw_text)
+    try:
+        signals = channel4_filter(message.raw_text)
+    except Exception:
+        traceback.print_exc()
+        logger.info('Ignoring signal becuase it is broken!')
+        return
+    mt = MT4()
     await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt, signal)
@@ -77,10 +102,31 @@ async def channel4_handler(message):
 
 async def channel5_handler(message):
     print('Valid Channel 5 signal')
-    signals = channel5_filter(message.raw_text)
+    try:
+        signals = channel5_filter(message.raw_text)
+    except Exception:
+        traceback.print_exc()
+        logger.info('Ignoring signal becuase it is broken!')
+        return
+    mt = MT4()
     await mt.async_init()
     for signal in signals:
         se = SignalExecutor(bot, mt,  signal)
+        await se.start_execution()
+
+
+async def channel6_handler(message):
+    print('Valid Channel 6 signal')
+    try:
+        signals = channel6_filter(message.raw_text)
+    except Exception:
+        traceback.print_exc()
+        logger.info('Ignoring signal becuase it is broken!')
+        return
+    mt = MT4()
+    await mt.async_init()
+    for signal in signals:
+        se = SignalExecutor(bot, mt, signal)
         await se.start_execution()
 
 
@@ -104,6 +150,8 @@ async def setup_event_handlers():
         chats=config.CHANNEL4_ID, func=is_signal))
     client.add_event_handler(channel5_handler, events.NewMessage(
         chats=config.CHANNEL5_ID, func=is_signal))
+    client.add_event_handler(channel6_handler, events.NewMessage(
+        chats=config.CHANNEL6_ID, func=is_signal))
 
 
 async def after_connect():
@@ -115,10 +163,10 @@ async def after_connect():
         await asyncio.sleep(1)
     while not await bot.is_user_authorized():
         await asyncio.sleep(1)
-    print('[+] Client and bot are now connected and authorized!')
     await setup_event_handlers()
-    add_account = AddAccount(bot)
-    await add_account.start()
+    print('[+] Client and bot are now connected and authorized!')
+    # add_account = AddAccount(bot)
+    # await add_account.start()
 
 
 bot.start(bot_token=config.BOT_TOKEN)

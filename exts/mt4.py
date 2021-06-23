@@ -1,8 +1,22 @@
 from metaapi_cloud_sdk import MetaApi, clients
+from metaapi_cloud_sdk.clients.errorHandler import InternalException
 import json
 import asyncio
 import logging
 import config
+from Utils.utils import NumberData
+
+INVALID_STOPS = 'TRADE_RETCODE_INVALID_STOPS'
+INVALID_PRICE = 'TRADE_RETCODE_INVALID_PRICE'
+OUT_OF_QUOTA = 'You have used all your account subscriptions quota. You have 0 account subscriptions available and have used 1 subscriptions.'
+
+
+def proper_convert(num):
+    number = NumberData(num)
+    if number.is_float():
+        return number.floated_version()
+    elif number.is_int():
+        return number.int_version()
 
 
 class MT4:
@@ -14,6 +28,7 @@ class MT4:
         self.mt5_filename = 'servers.dat'
         self.mt_version = 5
         self.init_complete = False
+        self.integers = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
 
     async def async_init(self):
         if self.init_complete:
@@ -22,6 +37,16 @@ class MT4:
             self.api = MetaApi(token=config.METACLOUD_ACCOUNT_TOKEN)
         await self.get_account_connection()
         self.init_complete = True
+
+    async def verify_connection(self):
+        if self.account.state == 'UNDEPLOYED':
+            print('Deploying the account ..')
+            await self.account.deploy()
+        if self.account.connection_status != 'CONNECTED':
+            await self.connection.wait_connected()
+            self.connection = await self.connection.connect()
+
+            await self.account.wait_connected()
 
     async def createProfile(self, profileName: str = None, brokerTimezone: str = None,
                             brokerDSTSwitchTimezone: str = None, serversFile: str = None, version: int = 5):
@@ -114,49 +139,104 @@ class MT4:
     async def create_buy_order(self, symbol=None,
                                open_price=None, stop_loss=None,
                                take_profit=None):
-        volume = config.LOT_VALUE
+        open_price = proper_convert(open_price)
+        stop_loss = proper_convert(stop_loss)
+        take_profit = proper_convert(take_profit)
+        if str(symbol).endswith(self.integers):
+            volume = config.VOLUME_FOR_INDICES
+        elif symbol.upper() in ['XTIUSD']:
+            volume = config.XTIUSD_VOLUME
+        else:
+            volume = config.VOLUME_FOR_FOREX
         if self.connection is None:
             await self.get_account_connection()
+        self.connection = await self.account.connect()
         try:
-            info = await self.connection.get_symbol_price(symbol)
-            open_price = float(info['ask'])
             self.loginfo(f'Symbol : {symbol}')
             self.loginfo(f'Volume : {volume}')
             self.loginfo(f'TP : {take_profit}')
             self.loginfo(f'SL : {stop_loss}')
             self.loginfo(f'Open Price : {open_price}')
-            await self.connection.create_stop_buy_order(
-                str(symbol), float(volume), float(open_price),
-                float(stop_loss), float(take_profit))
-            self.loginfo(f'Order Execution successfull!')
-            # await self.connection.close()
+            try:
+                await self.connection.create_stop_buy_order(
+                    str(symbol), volume, open_price,
+                    stop_loss, take_profit)
+                self.loginfo(f'Order Execution successfull!')
+            except clients.errorHandler.ValidationException as e:
+                print(e.details)
+            await self.connection.close()
             return
         except clients.metaApi.tradeException.TradeException as e:
-            self.loginfo('Trade execution failed because of trade exception!')
+            if e.__dict__['stringCode'] == INVALID_PRICE:
+                self.loginfo(
+                    'Getting the new market price ..')
+                open_price = await self.get_proper_symbol_price(symbol, price_type='ask')
+                await self.connection.create_stop_buy_order(
+                    str(symbol), volume, open_price,
+                    stop_loss, take_profit)
+                self.loginfo(f'Order Execution successfull!')
+                await self.connection.close()
+                return
+            await self.connection.close()
             self.loginfo(e.__dict__)
             return None
+        except InternalException as e:
+            await self.connection.close()
+            if e.__dict__['stringCode'] == OUT_OF_QUOTA:
+                self.loginfo('You are out of quota!')
+            self.loginfo(e.__dict__)
 
     async def create_sell_order(self, symbol=None,
                                 open_price=None, stop_loss=None,
                                 take_profit=None):
-        volume = config.LOT_VALUE
+        open_price = proper_convert(open_price)
+        stop_loss = proper_convert(stop_loss)
+        take_profit = proper_convert(take_profit)
+        if str(symbol).endswith(self.integers):
+            volume = config.VOLUME_FOR_INDICES
+        elif symbol.upper() in ['XTIUSD']:
+            volume = config.XTIUSD_VOLUME
+        else:
+            volume = config.VOLUME_FOR_FOREX
         if self.connection is None:
             await self.get_account_connection()
+        self.connection = await self.account.connect()
+
         try:
-            info = await self.connection.get_symbol_price(symbol)
-            open_price = float(info['bid'])
             self.loginfo(f'Symbol : {symbol}')
             self.loginfo(f'Volume : {volume}')
             self.loginfo(f'TP : {take_profit}')
             self.loginfo(f'SL : {stop_loss}')
             self.loginfo(f'Open Price : {open_price}')
-
-            await self.connection.create_stop_sell_order(
-                str(symbol), float(volume), float(open_price), float(stop_loss), float(take_profit), options={})
-            self.loginfo(f'Order Execution successfull!')
-            # await self.connection.close()
+            try:
+                await self.connection.create_stop_sell_order(
+                    str(symbol), volume, open_price, stop_loss, take_profit, options={})
+                self.loginfo(f'Order Execution successfull!')
+            except clients.errorHandler.ValidationException as e:
+                print(e.details)
+            await self.connection.close()
             return
         except clients.metaApi.tradeException.TradeException as e:
-            self.loginfo('Trade execution failed because of trade exception!')
             self.loginfo(e.__dict__)
+            if e.__dict__['stringCode'] == INVALID_PRICE:
+                open_price = await self.get_proper_symbol_price(symbol, price_type='bid')
+                self.loginfo(f'New price is {open_price}')
+                await self.connection.create_stop_sell_order(
+                    str(symbol), volume, open_price, stop_loss, take_profit, options={})
+                self.loginfo(f'Order Execution successfull!')
+        except InternalException as e:
+            if e.__dict__['stringCode'] == OUT_OF_QUOTA:
+                self.loginfo('You are out of quota!')
+            self.loginfo(e.__dict__)
+
+            await self.connection.close()
             return None
+
+    async def get_proper_symbol_price(self, symbol, price_type='bid'):
+        try:
+            info = await self.connection.get_symbol_price(symbol)
+        except asyncio.exceptions.TimeoutError:
+            await self.verify_connection()
+            info = await self.connection.get_symbol_price(symbol)
+        price = info[price_type]
+        return proper_convert(price)

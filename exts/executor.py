@@ -16,6 +16,9 @@ class SignalExecutor:
         self.execution_channels = [1, 3, 4, 5]
 
     async def start_execution(self):
+        if self.signal.channel_number in self.execution_channels:
+            await self.execute_signal()
+            return
         await self.ask_for_confirmation()
 
     async def execute_signal(self):
@@ -33,7 +36,7 @@ class SignalExecutor:
                                             open_price=self.signal.price)
 
     async def ask_for_confirmation(self):
-        async with self.bot.conversation(self.admin_id) as self.conv:
+        async with self.bot.conversation(self.admin_id, timeout=240) as self.conv:
             execute_btn = Button.inline('Execute Signal', data=b'execute')
             not_execute_btn = Button.inline(
                 'Don\'t Execute Signal', data=b'not_execute')
